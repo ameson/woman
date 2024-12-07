@@ -290,12 +290,17 @@ export default {
       this.selectedOption = e.detail.value
       const existingAnswer = this.answers.find(a => a.questionId === this.currentQuestion.id)
       
+      // 计算分数
+      const score = this.calculatePhysicalScore(this.selectedOption)
+      
       if (existingAnswer) {
         existingAnswer.value = this.selectedOption
+        existingAnswer.score = score
       } else {
         this.answers.push({
           questionId: this.currentQuestion.id,
           value: this.selectedOption,
+          score: score,
           weight: this.currentQuestion.weight
         })
       }
@@ -383,18 +388,28 @@ export default {
     },
 
     calculatePhysicalScore(value) {
-      // 将选项值转换为分数
-      const valueNum = parseFloat(value)
-      let score = 0
+      // 将字符串转换为数字
+      const numValue = parseFloat(value)
       
-      if (value === '1') score = 60
-      else if (value === '2') score = 70
-      else if (value === '3') score = 80
-      else if (value === '4') score = 90
-      else if (value === '5') score = 95
-      else if (value === '6') score = 100
+      // 如果不是有效数字，返回0
+      if (isNaN(numValue)) {
+        return 0
+      }
       
-      return score
+      // 根据问题类型计算分数
+      switch (this.currentQuestion.type) {
+        case 'face':
+          // 颜值评分已经在 onFaceScoreUpdate 中处理
+          return numValue
+        case 'physical':
+          // 身高体重评分 - 转换为0-100分
+          return Math.min(Math.max(numValue * 20, 0), 100)
+        case 'standard':
+          // 标准选项评分 - 将选项值转换为0-100分
+          return Math.min(Math.max(numValue * 20, 0), 100)
+        default:
+          return 0
+      }
     },
 
     calculateScores() {
@@ -498,11 +513,30 @@ export default {
         totalScore: adjustedScore,
         faceScore: this.faceScore,
         city: city,
-        dimensions: this.answers.map(answer => ({
-          name: this.questions.find(q => q.id === answer.questionId)?.title || '',
-          score: answer.score || this.calculatePhysicalScore(answer.value),
-          weight: answer.weight
-        }))
+        dimensions: this.answers.map(answer => {
+          // 从问题列表中找到对应的问题
+          const question = this.questions.find(q => q.id === answer.questionId)
+          const name = question?.title || `问题${answer.questionId}`
+          
+          // 计算分数
+          let score
+          if (answer.questionId === 1) {
+            // 颜值评分转换为百分制
+            score = Math.round(answer.score * 10)
+          } else if (answer.questionId === 2) {
+            // 身材指数使用 BMI 计算的分数
+            score = Math.round(answer.score)
+          } else {
+            // 其他问题使用选项值计算分数
+            score = Math.round(this.calculatePhysicalScore(answer.value))
+          }
+          
+          return {
+            name,
+            score,
+            weight: answer.weight
+          }
+        })
       }
       
       uni.redirectTo({

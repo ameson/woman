@@ -1,8 +1,6 @@
 <template>
   <view class="face-upload">
     <view class="upload-header">
-      <text class="upload-title">颜值评分</text>
-      <text class="upload-desc">请上传您的正面证件照用于颜值评分</text>
       <text class="privacy-note">隐私说明：您的照片仅用于打分，不会被保存</text>
     </view>
     
@@ -89,21 +87,6 @@ export default {
   .upload-header {
     text-align: center;
     margin-bottom: 30rpx;
-
-    .upload-title {
-      font-size: 32rpx;
-      font-weight: 600;
-      color: #333;
-      display: block;
-      margin-bottom: 10rpx;
-    }
-
-    .upload-desc {
-      font-size: 28rpx;
-      color: #666;
-      display: block;
-      margin-bottom: 10rpx;
-    }
 
     .privacy-note {
       font-size: 24rpx;

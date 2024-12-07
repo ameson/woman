@@ -1,62 +1,68 @@
 <template>
   <view class="container">
-    <view class="score-card">
-      <view class="score-header">
-        <text class="score-title">✨相亲指数---你的魅力指数 ✨</text>
-        <text class="score-value">{{ finalScore }}</text>
-        <text class="score-level">{{ scoreLevel.title }}</text>
-      </view>
-      
-      <view class="keywords-container">
-        <text class="keywords-title">你的关键词</text>
-        <view class="keywords-list">
-          <text v-for="(keyword, index) in scoreLevel.keywords" 
-                :key="index" 
-                class="keyword-tag">
-            {{ keyword }}
-          </text>
+    <canvas canvas-id="shareCanvas" class="share-canvas"></canvas>
+    <view class="result-container">
+      <view id="share-container" class="share-content">
+        <view class="score-card">
+          <view class="score-header">
+            <text class="score-title">✨相亲指数---你的魅力指数 ✨</text>
+            <text class="score-value">{{ finalScore }}</text>
+            <text class="score-level">{{ scoreLevel.title }}</text>
+          </view>
+          
+          <view class="keywords-container">
+            <text class="keywords-title">你的关键词</text>
+            <view class="keywords-list">
+              <text v-for="(keyword, index) in scoreLevel.keywords" 
+                    :key="index" 
+                    class="keyword-tag">
+                {{ keyword }}
+              </text>
+            </view>
+          </view>
+          
+          <view class="score-details">
+            <text class="detail-title">解读小贴士</text>
+            <text class="detail-text">{{ scoreLevel.description }}</text>
+          </view>
+
+          <view class="city-adjustment">
+            <text class="city-title">所在城市：{{ city }}</text>
+            <text class="city-note">* 已根据城市特点调整评分标准</text>
+          </view>
+
+          <view class="face-score-section">
+            <view class="face-score-result">
+              <text class="face-score-title">颜值评分：{{ Math.round(faceScore * 10) }}分</text>
+              <text class="face-score-note">* 已将颜值评分计入总分</text>
+            </view>
+          </view>
+
+          <view class="follow-us">
+            <view class="follow-content">
+              <text class="follow-title">关注我们</text>
+              <image class="qr-code" src="@/static/qr.jpg" mode="aspectFit"></image>
+              <text class="follow-desc">扫码关注获取更多资讯</text>
+            </view>
+          </view>
+        </view>
+        <view class="dimension-cards">
+          <view v-for="(dimension, index) in dimensionResults" :key="index" class="dimension-card">
+            <view class="dimension-header">
+              <text class="dimension-title">{{ dimension.name }}</text>
+              <text class="dimension-score">{{ dimension.score }}分</text>
+            </view>
+            <text class="dimension-comment">{{ getScoreComment(dimension.score) }}</text>
+          </view>
         </view>
       </view>
-      
-      <view class="score-details">
-        <text class="detail-title">解读小贴士</text>
-        <text class="detail-text">{{ scoreLevel.description }}</text>
-      </view>
 
-      <view class="city-adjustment">
-        <text class="city-title">所在城市：{{ city }}</text>
-        <text class="city-note">* 已根据城市特点调整评分标准</text>
-      </view>
-
-      <view class="face-score-section">
-        <view class="face-score-result">
-          <text class="face-score-title">颜值评分：{{ faceScore }}分</text>
-          <text class="face-score-note">* 已将颜值评分计入总分</text>
-        </view>
-      </view>
-
-      <view class="follow-us">
-        <view class="follow-content">
-          <text class="follow-title">关注我们</text>
-          <image class="qr-code" src="@/static/qr.jpg" mode="aspectFit"></image>
-          <text class="follow-desc">扫码关注获取更多资讯</text>
-        </view>
+      <!-- 操作按钮 -->
+      <view class="action-buttons">
+        <button class="share-btn" @click="shareScore">分享成绩</button>
+        <button class="restart-btn" @click="restart">重新测试</button>
       </view>
     </view>
-
-    
-
-    <view class="dimension-cards">
-      <view v-for="(dimension, index) in dimensionResults" :key="index" class="dimension-card">
-        <view class="dimension-header">
-          <text class="dimension-title">{{ dimension.name }}</text>
-          <text class="dimension-score">{{ dimension.score }}分</text>
-        </view>
-        <text class="dimension-comment">{{ getScoreComment(dimension.score) }}</text>
-      </view>
-    </view>
-
-    <button class="restart-button" @click="restart">重新测试</button>
   </view>
 </template>
 
@@ -104,12 +110,19 @@ export default {
   },
   computed: {
     finalScore() {
-      // 将颜值评分计入总分，权重为20%
+      // 颜值评分权重为20%
       const faceScoreWeight = 0.2
       const otherScoreWeight = 0.8
-      const faceScoreContribution = this.faceScore * 10 * faceScoreWeight // 将1-10分转换为百分制
+      
+      // 颜值评分已经是百分制（1-10分转为10-100分）
+      const faceScoreContribution = (this.faceScore * 10) * faceScoreWeight
+      
+      // 其他维度得分
       const otherScoreContribution = this.rawScore * otherScoreWeight
-      return Math.round(faceScoreContribution + otherScoreContribution)
+      
+      // 确保最终分数在0-100之间
+      const score = Math.round(faceScoreContribution + otherScoreContribution)
+      return Math.min(100, Math.max(0, score))
     },
     scoreLevel() {
       return this.scoreLevels.find(level => this.finalScore >= level.min)
@@ -125,7 +138,191 @@ export default {
         .sort((a, b) => b.score - a.score)
     }
   },
+  mounted() {
+    // 加载html2canvas
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+    script.onload = () => {
+      console.log('html2canvas loaded');
+    };
+    document.head.appendChild(script);
+  },
   methods: {
+    async shareScore() {
+      try {
+        const ctx = uni.createCanvasContext('shareCanvas', this);
+        const canvasWidth = 375;
+        const canvasHeight = 800;
+        
+        // 设置背景色
+        const grd = ctx.createLinearGradient(0, 0, 0, canvasHeight);
+        grd.addColorStop(0, '#fff5f5');
+        grd.addColorStop(1, '#fff5f5');
+        ctx.setFillStyle(grd);
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        
+        // 绘制标题
+        ctx.setFontSize(24);
+        ctx.setFillStyle('#ff4d6a');
+        ctx.setTextAlign('center');
+        ctx.fillText('相亲指数---你的魅力指数', canvasWidth/2, 50);
+        
+        // 绘制分数
+        ctx.setFontSize(120);
+        ctx.setFillStyle('#ff4d6a');
+        ctx.fillText(this.finalScore, canvasWidth/2, 180);
+        
+        // 绘制类型
+        ctx.setFontSize(28);
+        const starEmoji = '⭐';
+        ctx.fillText(starEmoji + ' ' + this.scoreLevel.title + ' ' + starEmoji, canvasWidth/2, 240);
+        
+        // 绘制关键词标签
+        const tags = this.scoreLevel.keywords;
+        const tagHeight = 36;
+        const tagPadding = 20;
+        const tagSpacing = 15;
+        let currentX = 20;
+        let currentY = 280;
+        
+        ctx.setFontSize(16);
+        tags.forEach((tag, index) => {
+          const textWidth = ctx.measureText(tag).width;
+          const tagWidth = textWidth + tagPadding * 2;
+          
+          // 如果当前行放不下，换行
+          if (currentX + tagWidth > canvasWidth - 20) {
+            currentX = 20;
+            currentY += tagHeight + 10;
+          }
+          
+          // 绘制标签背景
+          ctx.setFillStyle('#ffd4dc');
+          ctx.fillRect(currentX, currentY, tagWidth, tagHeight);
+          
+          // 绘制标签文字
+          ctx.setFillStyle('#ff4d6a');
+          ctx.setTextAlign('center');
+          ctx.fillText(tag, currentX + tagWidth/2, currentY + 25);
+          
+          currentX += tagWidth + tagSpacing;
+        });
+        
+        // 绘制评语
+        currentY += tagHeight + 30;
+        ctx.setFontSize(16);
+        ctx.setFillStyle('#333333');
+        ctx.setTextAlign('left');
+        const text = this.scoreLevel.description;
+        this.drawMultilineText(ctx, text, 20, currentY, canvasWidth - 40, 24);
+        
+        // 绘制城市信息
+        currentY += 100;
+        ctx.setFontSize(16);
+        ctx.fillText('所在城市：' + this.city, 20, currentY);
+        currentY += 25;
+        ctx.setFontSize(14);
+        ctx.setFillStyle('#999999');
+        ctx.fillText('* 已根据城市特点调整评分标准', 20, currentY);
+        
+        // 绘制颜值评分
+        currentY += 40;
+        ctx.setFontSize(16);
+        ctx.setFillStyle('#333333');
+        ctx.fillText('颜值评分：' + Math.round(this.faceScore * 100) + '分', 20, currentY);
+        currentY += 25;
+        ctx.setFontSize(14);
+        ctx.setFillStyle('#999999');
+        ctx.fillText('* 已将颜值评分计入总分', 20, currentY);
+        
+        // 加载并绘制二维码
+        const qrImage = await this.getImageInfo('/static/qr.jpg');
+        const qrSize = 120;
+        const qrX = (canvasWidth - qrSize) / 2;
+        currentY += 60;
+        ctx.drawImage(qrImage.path, qrX, currentY, qrSize, qrSize);
+        
+        // 绘制二维码说明
+        currentY += qrSize + 30;
+        ctx.setFontSize(14);
+        ctx.setTextAlign('center');
+        ctx.setFillStyle('#666666');
+        ctx.fillText('扫描二维码生成你的相亲指数', canvasWidth/2, currentY);
+        
+        ctx.draw(false, () => {
+          setTimeout(() => {
+            uni.canvasToTempFilePath({
+              canvasId: 'shareCanvas',
+              fileType: 'png',
+              quality: 1,
+              success: (res) => {
+                const base64 = res.tempFilePath;
+                const a = document.createElement('a');
+                if (base64.startsWith('data:image')) {
+                  a.href = base64;
+                } else {
+                  a.href = 'data:image/png;base64,' + base64;
+                }
+                a.download = '相亲指数_' + new Date().getTime() + '.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                uni.showToast({
+                  title: '图片已开始下载',
+                  icon: 'success'
+                });
+              },
+              fail: (err) => {
+                console.error('生成图片失败:', err);
+                uni.showToast({
+                  title: '生成图片失败',
+                  icon: 'none'
+                });
+              }
+            });
+          }, 300);
+        });
+      } catch (error) {
+        console.error('分享图片生成失败:', error);
+        uni.showToast({
+          title: '分享图片生成失败',
+          icon: 'none'
+        });
+      }
+    },
+    
+    // 辅助方法：获取图片信息
+    getImageInfo(src) {
+      return new Promise((resolve, reject) => {
+        uni.getImageInfo({
+          src: src,
+          success: resolve,
+          fail: reject
+        });
+      });
+    },
+    
+    // 辅助方法：绘制多行文本
+    drawMultilineText(ctx, text, x, y, maxWidth, lineHeight) {
+      let chars = text.split('');
+      let line = '';
+      
+      for (let i = 0; i < chars.length; i++) {
+        let testLine = line + chars[i];
+        let metrics = ctx.measureText(testLine);
+        
+        if (metrics.width > maxWidth && i > 0) {
+          ctx.fillText(line, x, y);
+          line = chars[i];
+          y += lineHeight;
+        } else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line, x, y);
+    },
+    
     getScoreComment(score) {
       // 检查是否是年龄维度
       if (this.dimensions.find(d => d.score === score && d.name.includes('年龄'))) {
@@ -142,6 +339,7 @@ export default {
       if (score >= 60) return '有待发展 | 这一维度还有较大提升空间，建议多投入一些时间和精力，相信通过努力一定会有显著进步。'
       return '潜力待发 | 这个方面需要更多关注，不妨制定一个提升计划，循序渐进地改善，每一点进步都很重要。'
     },
+    
     restart() {
       uni.redirectTo({
         url: '/pages/woman/index'
@@ -365,19 +563,58 @@ export default {
   }
 }
 
-.restart-button {
-  background-color: #ff6b81;
-  color: #ffffff;
-  border-radius: 25px;
-  padding: 15px 0;
-  width: 80%;
-  margin: 30px auto;
-  font-size: 16px;
-  border: none;
-  box-shadow: 0 4px 12px rgba(255, 107, 129, 0.2);
+.action-buttons {
+  position: fixed;
+  bottom: 40rpx;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  padding: 0 40rpx;
+  
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 100;
+}
 
-  &:active {
-    opacity: 0.9;
-  }
+.share-btn, .restart-btn {
+  width: 280rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  border-radius: 40rpx;
+  font-size: 32rpx;
+  color: #fff;
+  text-align: center;
+  
+}
+
+.share-btn {
+  background: linear-gradient(45deg, #FF9A9E, #FAD0C4);
+}
+
+.restart-btn {
+  background: linear-gradient(45deg, #A6C1EE, #86A8E7);
+}
+
+.share-canvas {
+  position: fixed;
+  left: -9999px;
+  width: 100%;
+  height: 100%;
+}
+
+.share-content {
+  background: #ffffff;
+  padding: 30rpx;
+  border-radius: 20rpx;
+  margin-bottom: 120rpx; /* 为底部按钮留出空间 */
+}
+
+.share-canvas {
+  position: fixed;
+  left: -9999px;
+  width: 750rpx;
+  height: 1334rpx;
+  z-index: -1;
+  visibility: hidden;
 }
 </style>
