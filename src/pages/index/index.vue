@@ -86,6 +86,16 @@ export default {
   data() {
     return {}
   },
+  mounted() {
+    // Baidu Analytics tracking script
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?a2e1dda791e37f17ddffc039aca159ec";
+      var s = document.getElementsByTagName("script")[0]; 
+      s.parentNode.insertBefore(hm, s);
+    })();
+  },
   methods: {
     selectGender(gender) {
       if (gender === 'female') {
@@ -96,33 +106,8 @@ export default {
       } else if (gender === 'male') {
         // 跨平台兼容的跳转方案
         try {
-          // 首选 plus.runtime.openURL（App环境）
-          if (typeof plus !== 'undefined') {
-            plus.runtime.openURL('https://man.qioo.fun')
-            return
-          }
-
-          // 微信小程序环境
-          if (uni.getSystemInfoSync().platform === 'wx') {
-            wx.navigateToMiniProgram({
-              appId: 'your_appid_here', // 替换为实际的小程序AppID
-              path: 'pages/index/index',
-              success(res) {
-                console.log('跳转成功')
-              },
-              fail(err) {
-                console.error('跳转失败', err)
-                uni.showToast({
-                  title: '跳转失败，请稍后重试',
-                  icon: 'none'
-                })
-              }
-            })
-            return
-          }
-
-          // H5环境
-          window.open('https://man.qioo.fun', '_blank')
+          // H5 环境直接跳转
+          window.location.href = 'https://man.qioo.fun'
         } catch (error) {
           console.error('跳转异常:', error)
           uni.showToast({
