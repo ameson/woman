@@ -33,7 +33,7 @@
 
           <view class="face-score-section">
             <view class="face-score-result">
-              <text class="face-score-title">颜值评分：{{ Math.round(faceScore * 10) }}分</text>
+              <text class="face-score-title">颜值评分：{{ Math.round(faceScore * 100) }}分</text>
               <text class="face-score-note">* 已将颜值评分计入总分</text>
             </view>
           </view>
@@ -114,14 +114,19 @@ export default {
       const faceScoreWeight = 0.2
       const otherScoreWeight = 0.8
       
-      // 颜值评分已经是百分制（1-10分转为10-100分）
-      const faceScoreContribution = (this.faceScore * 10) * faceScoreWeight
+      // 颜值评分已经是0-1，需要转换为百分制
+      const faceScoreContribution = (this.faceScore * 100) * faceScoreWeight
       
       // 其他维度得分
       const otherScoreContribution = this.rawScore * otherScoreWeight
       
+      console.log('=== 最终得分计算 ===');
+      console.log(`颜值得分(${this.faceScore * 100})，权重(${faceScoreWeight})，贡献：${faceScoreContribution}`);
+      console.log(`其他维度得分(${this.rawScore})，权重(${otherScoreWeight})，贡献：${otherScoreContribution}`);
+      
       // 确保最终分数在0-100之间
       const score = Math.round(faceScoreContribution + otherScoreContribution)
+      console.log(`最终得分：${score}`);
       return Math.min(100, Math.max(0, score))
     },
     scoreLevel() {

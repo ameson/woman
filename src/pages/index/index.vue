@@ -15,7 +15,7 @@
     </view>
     
     <view class="gender-cards">
-      <view class="gender-card woman" hover-class="card-hover" @click="selectGender('woman')">
+      <view class="gender-card woman" hover-class="card-hover" @click="selectGender('female')">
         <view class="card-content">
           <image class="gender-icon" src="../../static/images/woman.svg" mode="aspectFit"></image>
           <text class="gender-title">魅力女生</text>
@@ -38,7 +38,7 @@
         <view class="card-decoration"></view>
       </view>
       
-      <view class="gender-card man" hover-class="card-hover" @click="selectGender('man')">
+      <view class="gender-card man" hover-class="card-hover" @click="selectGender('male')">
         <view class="card-content">
           <image class="gender-icon" src="../../static/images/man.svg" mode="aspectFit"></image>
           <text class="gender-title">品质男生</text>
@@ -88,17 +88,50 @@ export default {
   },
   methods: {
     selectGender(gender) {
-      if (gender === 'man') {
-        uni.showToast({
-          title: '男生版即将闪亮登场，敬请期待',
-          icon: 'none'
+      if (gender === 'female') {
+        // 女生版本保持不变
+        uni.navigateTo({
+          url: '/pages/woman/assessment'
         })
-        return
+      } else if (gender === 'male') {
+        // 跨平台兼容的跳转方案
+        try {
+          // 首选 plus.runtime.openURL（App环境）
+          if (typeof plus !== 'undefined') {
+            plus.runtime.openURL('https://man.qioo.fun')
+            return
+          }
+
+          // 微信小程序环境
+          if (uni.getSystemInfoSync().platform === 'wx') {
+            wx.navigateToMiniProgram({
+              appId: 'your_appid_here', // 替换为实际的小程序AppID
+              path: 'pages/index/index',
+              success(res) {
+                console.log('跳转成功')
+              },
+              fail(err) {
+                console.error('跳转失败', err)
+                uni.showToast({
+                  title: '跳转失败，请稍后重试',
+                  icon: 'none'
+                })
+              }
+            })
+            return
+          }
+
+          // H5环境
+          window.open('https://man.qioo.fun', '_blank')
+        } catch (error) {
+          console.error('跳转异常:', error)
+          uni.showToast({
+            title: '跳转失败，请稍后重试',
+            icon: 'none'
+          })
+        }
       }
-      uni.navigateTo({
-        url: `../woman/index`
-      })
-    }
+    },
   }
 }
 </script>

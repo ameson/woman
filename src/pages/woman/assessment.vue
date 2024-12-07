@@ -12,7 +12,19 @@
       <view class="question-content">
         <!-- 颜值评分部分 -->
         <template v-if="currentQuestion?.type === 'face'">
-          <FaceUpload @score-update="onFaceScoreUpdate" />
+          <view class="face-section">
+            <view class="face-upload-wrapper">
+              <face-upload 
+                @score-update="onFaceScoreUpdate"
+                @loading-change="onFaceLoadingChange"
+              />
+              <view v-if="isProcessingFace" class="processing-tips">
+                <view class="loading-spinner"></view>
+                <text class="loading-text">AI正在分析照片，请稍候...</text>
+                <text class="sub-tip">通常需要1-2秒完成分析</text>
+              </view>
+            </view>
+          </view>
         </template>
 
         <!-- 身高体重部分 -->
@@ -104,6 +116,7 @@ export default {
       selectedHeight: '',
       selectedWeight: '',
       answers: [],
+      isProcessingFace: false,
       questions: [
         {
           id: 1,
@@ -376,7 +389,7 @@ export default {
         }
         return true
       }
-      
+
       if (!this.selectedOption) {
         uni.showToast({
           title: '请选择一个选项',
@@ -390,16 +403,16 @@ export default {
     calculatePhysicalScore(value) {
       // 将字符串转换为数字
       const numValue = parseFloat(value)
-      
+
       // 如果不是有效数字，返回0
       if (isNaN(numValue)) {
         return 0
       }
-      
+
       // 根据问题类型计算分数
       switch (this.currentQuestion.type) {
         case 'face':
-          // 颜值评分已经在 onFaceScoreUpdate 中处理
+          // 颜值评分已经是百分制
           return numValue
         case 'physical':
           // 身高体重评分 - 转换为0-100分
@@ -415,26 +428,38 @@ export default {
     calculateScores() {
       let totalScore = 0
       let totalWeight = 0
-      
+
+      console.log('=== 开始计算得分 ===');
       this.answers.forEach(answer => {
         let score = 0
         if (answer.questionId === 1) {
           // 颜值评分题目使用faceScore
-          score = this.faceScore
+          score = answer.score
+          console.log(`颜值得分: ${score}分, 权重: ${answer.weight}`);
         } else if (answer.questionId === 2) {
           // 身高体重题目使用BMI计算的分数
           score = answer.score
+          console.log(`身材得分: ${score}分, 权重: ${answer.weight}`);
         } else {
           // 其他题目根据选项计算分数
           score = this.calculatePhysicalScore(answer.value)
+          const question = this.questions.find(q => q.id === answer.questionId);
+          console.log(`${question?.title || '其他维度'}: ${score}分, 权重: ${answer.weight}`);
         }
         
-        totalScore += score * answer.weight
-        totalWeight += answer.weight
+        const weightedScore = score * answer.weight;
+        console.log(`加权得分: ${weightedScore}分`);
+        
+        totalScore += weightedScore;
+        totalWeight += answer.weight;
       })
       
       // 计算加权平均分
-      return totalWeight > 0 ? totalScore / totalWeight : 0
+      const finalScore = totalWeight > 0 ? totalScore / totalWeight : 0;
+      console.log(`总权重: ${totalWeight}`);
+      console.log(`原始总分: ${totalScore}`);
+      console.log(`加权平均分: ${finalScore}`);
+      return finalScore;
     },
 
     getScoreComment(score) {
@@ -465,7 +490,7 @@ export default {
       }
 
       if (!this.validateNumberInput()) return
-      
+
       if (this.currentStep < this.totalSteps) {
         this.currentStep++
         this.selectedOption = ''
@@ -476,26 +501,49 @@ export default {
       }
     },
 
-    onFaceScoreUpdate(score) {
-      this.faceScore = score
-      // 记录颜值评分答案
-      this.answers.push({
-        questionId: 1,
-        value: score,
-        score: score,
-        weight: 0.2
-      })
-      this.nextQuestion()
+    async onFaceScoreUpdate(score) {
+      try {
+        // score 直接是分数值（1-10分）
+        const faceScore = score / 10; // 转换为0-1范围
+        this.faceScore = faceScore;
+        
+        // 记录颜值评分答案
+        this.answers.push({
+          questionId: 1,
+          value: faceScore,
+          score: score * 10, // 转换为百分制（1-10 -> 10-100）
+          weight: 0.2
+        });
+        
+        console.log('原始颜值得分(1-10):', score);
+        console.log('转换后颜值得分(0-1):', faceScore);
+        console.log('百分制颜值得分(0-100):', score * 10);
+        
+        // 添加一个小延迟，确保用户能看到处理完成的状态
+        setTimeout(() => {
+          this.nextQuestion();
+        }, 500);
+      } catch (error) {
+        console.error('处理颜值评分失败:', error);
+        uni.showToast({
+          title: '评分处理失败，请重试',
+          icon: 'none'
+        });
+      }
+    },
+
+    onFaceLoadingChange(loading) {
+      this.isProcessingFace = loading;
     },
 
     submitAssessment() {
       const totalScore = this.calculateScores()
-      
+
       // 获取城市等级信息
       const pages = getCurrentPages()
       const prevPage = pages[pages.length - 2]
       const city = prevPage?.data?.selectedCity?.level || '一线城市'
-      
+
       // 根据城市等级调整分数
       let cityAdjustment = 0
       switch (city) {
@@ -505,9 +553,9 @@ export default {
         case '三线城市': cityAdjustment = 2; break
         default: cityAdjustment = 5
       }
-      
+
       const adjustedScore = Math.max(0, Math.min(100, totalScore + cityAdjustment))
-      
+
       // 跳转到结果页面，添加颜值分数
       const data = {
         totalScore: adjustedScore,
@@ -517,12 +565,12 @@ export default {
           // 从问题列表中找到对应的问题
           const question = this.questions.find(q => q.id === answer.questionId)
           const name = question?.title || `问题${answer.questionId}`
-          
+
           // 计算分数
           let score
           if (answer.questionId === 1) {
-            // 颜值评分转换为百分制
-            score = Math.round(answer.score * 10)
+            // 颜值评分已经是百分制
+            score = Math.round(answer.score)
           } else if (answer.questionId === 2) {
             // 身材指数使用 BMI 计算的分数
             score = Math.round(answer.score)
@@ -530,7 +578,7 @@ export default {
             // 其他问题使用选项值计算分数
             score = Math.round(this.calculatePhysicalScore(answer.value))
           }
-          
+
           return {
             name,
             score,
@@ -538,7 +586,7 @@ export default {
           }
         })
       }
-      
+
       uni.redirectTo({
         url: `/pages/woman/result?data=${encodeURIComponent(JSON.stringify(data))}`
       })
@@ -557,7 +605,7 @@ export default {
 .progress-bar {
   margin-bottom: 30rpx;
   position: relative;
-  
+
   .progress-text {
     position: absolute;
     right: 0;
@@ -568,32 +616,28 @@ export default {
 }
 
 .question-container {
-  background-color: #fff;
-  border-radius: 12rpx;
   padding: 30rpx;
-  margin-top: 30rpx;
+  background: #fff;
+  border-radius: 12rpx;
+  margin: 20rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
-}
-
-.question-title {
-  font-size: 36rpx;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 20rpx;
-  display: block;
-  text-align: center;
-}
-
-.question-subtitle {
-  font-size: 28rpx;
-  color: #666;
-  margin-bottom: 40rpx;
-  display: block;
-  text-align: center;
-}
-
-.question-content {
-  margin: 40rpx 0;
+  
+  .question-title {
+    font-size: 36rpx;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 30rpx;
+    display: block;
+    text-align: center;
+  }
+  
+  .question-subtitle {
+    font-size: 28rpx;
+    color: #666;
+    margin-bottom: 20rpx;
+    text-align: center;
+    display: block;
+  }
 }
 
 .standard-options {
@@ -605,11 +649,11 @@ export default {
     background-color: #f8f8f8;
     border-radius: 8rpx;
     transition: all 0.3s;
-    
+
     &:active {
       background-color: #f0f0f0;
     }
-    
+
     .option-text {
       margin-left: 20rpx;
       font-size: 28rpx;
@@ -621,7 +665,7 @@ export default {
 .physical-inputs {
   .physical-group {
     margin-bottom: 40rpx;
-    
+
     .group-label {
       font-size: 32rpx;
       font-weight: 500;
@@ -629,19 +673,19 @@ export default {
       margin-bottom: 20rpx;
       display: block;
     }
-    
+
     .physical-options {
       display: flex;
       flex-direction: column;
       gap: 20rpx;
-      
+
       .option-item {
         display: flex;
         align-items: center;
         padding: 20rpx;
         background-color: #f8f8f8;
         border-radius: 8rpx;
-        
+
         .option-text {
           margin-left: 20rpx;
           font-size: 28rpx;
@@ -667,21 +711,21 @@ export default {
   border-radius: 40rpx;
   font-size: 32rpx;
   border: none;
-  
+
   &.prev {
     background-color: #f0f0f0;
     color: #666;
-    
+
     &:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
   }
-  
+
   &.next {
     background-color: #ff6b81;
     color: #fff;
-    
+
     &:disabled {
       background-color: #ffb3bd;
       cursor: not-allowed;
@@ -689,4 +733,54 @@ export default {
   }
 }
 
+.face-section {
+  .face-upload-wrapper {
+    position: relative;
+    min-height: 300rpx;
+    
+    .processing-tips {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      padding: 40rpx;
+      border-radius: 20rpx;
+      color: #fff;
+      text-align: center;
+      z-index: 999;
+      width: 80%;
+      max-width: 600rpx;
+      box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.2);
+      
+      .loading-spinner {
+        width: 80rpx;
+        height: 80rpx;
+        border: 6rpx solid #fff;
+        border-top-color: transparent;
+        border-radius: 50%;
+        margin: 0 auto 30rpx;
+        animation: spin 1s linear infinite;
+      }
+      
+      .loading-text {
+        display: block;
+        font-size: 32rpx;
+        margin-bottom: 16rpx;
+      }
+      
+      .sub-tip {
+        display: block;
+        font-size: 26rpx;
+        color: rgba(255, 255, 255, 0.8);
+        margin-top: 16rpx;
+      }
+    }
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 </style>

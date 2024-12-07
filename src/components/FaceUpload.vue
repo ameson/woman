@@ -1,6 +1,7 @@
 <template>
   <view class="face-upload">
     <view class="upload-header">
+		<text class="privacy-note">使用说明：AI颜值评分还未能掌握人类审美的奥秘，酌情使用~~</text>
       <text class="privacy-note">隐私说明：您的照片仅用于打分，不会被保存</text>
     </view>
     
@@ -56,7 +57,11 @@ export default {
       }
 
       this.isSubmitting = true
+      this.$emit('loading-change', true) // 通知父组件开始加载
+      
       try {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
         const score = await uploadFaceImage(this.imageUrl)
         this.$emit('score-update', score)
         uni.showToast({
@@ -71,6 +76,7 @@ export default {
         })
       } finally {
         this.isSubmitting = false
+        this.$emit('loading-change', false) // 通知父组件加载完成
       }
     }
   }
