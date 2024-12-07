@@ -87,16 +87,26 @@ export default {
     return {}
   },
   mounted() {
-    // Baidu Analytics tracking script
-    var _hmt = _hmt || [];
-    (function() {
-      var hm = document.createElement("script");
-      hm.src = "https://hm.baidu.com/hm.js?a2e1dda791e37f17ddffc039aca159ec";
-      var s = document.getElementsByTagName("script")[0]; 
-      s.parentNode.insertBefore(hm, s);
-    })();
+    this.initBaiduAnalytics();
   },
   methods: {
+    initBaiduAnalytics() {
+      // 确保在客户端环境中运行
+      if (typeof window !== 'undefined') {
+        window._hmt = window._hmt || [];
+        const hm = document.createElement('script');
+        hm.src = 'https://hm.baidu.com/hm.js?a2e1dda791e37f17ddffc039aca159ec';
+        const s = document.getElementsByTagName('script')[0];
+        s.parentNode.insertBefore(hm, s);
+
+        // 添加路由变化时的页面浏览统计
+        this.$router.afterEach((to) => {
+          if (window._hmt) {
+            window._hmt.push(['_trackPageview', to.fullPath]);
+          }
+        });
+      }
+    },
     selectGender(gender) {
       if (gender === 'female') {
         // 女生版本保持不变
