@@ -3,7 +3,7 @@
   publish = "dist"
 
 [[redirects]]
-  from = "/*"
+  from = "/build/h5/*"
   to = "/index.html"
   status = 200
 
