@@ -2,7 +2,7 @@ import CryptoJS from 'crypto-js'
 
 // API配置
 const API_CONFIG = {
-  baseUrl: 'http://localhost:5000',
+  baseUrl: 'https://face-api-9xer.onrender.com',
   apiKey: import.meta.env.VITE_API_KEY,
   secretKey: import.meta.env.VITE_SECRET_KEY
 }
