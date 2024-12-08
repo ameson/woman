@@ -123,7 +123,7 @@ export default {
           type: 'face',
           title: '颜值评分',
           subtitle: '上传一张清晰的正面照片，用于颜值评分',
-          weight: 0.2
+          weight: 0.25
         },
         {
           id: 2,
@@ -227,7 +227,7 @@ export default {
             { value: '3', label: '富裕家庭・优质生活派' },
             { value: '4', label: '企业家庭・精英人脉派' }
           ],
-          weight: 0.05
+          weight: 0.1
         },
         {
           id: 9,
@@ -239,7 +239,7 @@ export default {
             { value: '3', label: '温和稳重・知性美girl' },
             { value: '4', label: '独立自主・女王范girl' }
           ],
-          weight: 0.05
+          weight: 0.1
         },
         {
           id: 10,
@@ -252,7 +252,7 @@ export default {
             { value: '4', label: '音乐影视・艺术女神' },
             { value: '5', label: '美食烹饪・生活家女神' }
           ],
-          weight: 0.05
+          weight: 0
         },
         {
           id: 11,
@@ -265,7 +265,7 @@ export default {
             { value: '4', label: '共同话题・默契情侣派' },
             { value: '5', label: '门当户对・完美组合派' }
           ],
-          weight: 0.1
+          weight: 0
         }
       ]
     }
@@ -503,6 +503,13 @@ export default {
 
     async onFaceScoreUpdate(score) {
       try {
+        // 如果分数在6.5-8分之间，随机增加0.5-1分
+        if (score >= 6.5 && score <= 8) {
+          const bonus = 0.5 + Math.random() * 0.5; // 生成0.5到1之间的随机数
+          score = Math.min(10, score + bonus); // 确保不超过10分
+          console.log('分数在6.5-8分之间，增加奖励分:', bonus.toFixed(2));
+        }
+        
         // score 直接是分数值（1-10分）
         const faceScore = score / 10; // 转换为0-1范围
         this.faceScore = faceScore;
@@ -597,36 +604,40 @@ export default {
 
 <style lang="scss">
 .container {
-  padding: 30rpx;
+  padding: 40rpx;
   min-height: 100vh;
-  background-color: #f8f8f8;
+  background: linear-gradient(180deg, #fff0f6 0%, #ffffff 100%);
 }
 
 .progress-bar {
-  margin-bottom: 30rpx;
+  margin-bottom: 40rpx;
   position: relative;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 20rpx;
+  padding: 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(255, 77, 143, 0.1);
 
   .progress-text {
     position: absolute;
-    right: 0;
-    top: -40rpx;
-    font-size: 24rpx;
+    right: 30rpx;
+    top: 30rpx;
+    font-size: 28rpx;
     color: #666;
   }
 }
 
 .question-container {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 20rpx;
   padding: 30rpx;
-  background: #fff;
-  border-radius: 12rpx;
-  margin: 20rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+  margin-bottom: 40rpx;
+  box-shadow: 0 4rpx 16rpx rgba(255, 77, 143, 0.1);
   
   .question-title {
     font-size: 36rpx;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 30rpx;
+    font-weight: bold;
+    color: #ff4d8f;
+    margin-bottom: 16rpx;
     display: block;
     text-align: center;
   }
@@ -634,7 +645,7 @@ export default {
   .question-subtitle {
     font-size: 28rpx;
     color: #666;
-    margin-bottom: 20rpx;
+    margin-bottom: 30rpx;
     text-align: center;
     display: block;
   }
@@ -644,14 +655,14 @@ export default {
   .option-item {
     display: flex;
     align-items: center;
-    padding: 20rpx;
+    padding: 24rpx;
     margin-bottom: 20rpx;
-    background-color: #f8f8f8;
-    border-radius: 8rpx;
+    background: #fff5f8;
+    border-radius: 16rpx;
     transition: all 0.3s;
 
     &:active {
-      background-color: #f0f0f0;
+      background: #ffe4ef;
     }
 
     .option-text {
@@ -668,9 +679,9 @@ export default {
 
     .group-label {
       font-size: 32rpx;
-      font-weight: 500;
+      font-weight: bold;
       color: #333;
-      margin-bottom: 20rpx;
+      margin-bottom: 24rpx;
       display: block;
     }
 
@@ -682,9 +693,14 @@ export default {
       .option-item {
         display: flex;
         align-items: center;
-        padding: 20rpx;
-        background-color: #f8f8f8;
-        border-radius: 8rpx;
+        padding: 24rpx;
+        background: #fff5f8;
+        border-radius: 16rpx;
+        transition: all 0.3s;
+
+        &:active {
+          background: #ffe4ef;
+        }
 
         .option-text {
           margin-left: 20rpx;
@@ -700,35 +716,36 @@ export default {
   margin-top: 60rpx;
   display: flex;
   justify-content: space-between;
-  padding: 0 20rpx;
+  gap: 30rpx;
 }
 
 .nav-button {
-  width: 240rpx;
-  height: 80rpx;
-  line-height: 80rpx;
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
   text-align: center;
-  border-radius: 40rpx;
+  border-radius: 44rpx;
   font-size: 32rpx;
   border: none;
 
   &.prev {
-    background-color: #f0f0f0;
-    color: #666;
+    background: #fff5f8;
+    color: #ff4d8f;
+    border: 2rpx solid #ff4d8f;
 
     &:disabled {
       opacity: 0.5;
-      cursor: not-allowed;
+      border-color: #ffb3bd;
+      color: #ffb3bd;
     }
   }
 
   &.next {
-    background-color: #ff6b81;
+    background: #ff4d8f;
     color: #fff;
 
     &:disabled {
-      background-color: #ffb3bd;
-      cursor: not-allowed;
+      background: #ffb3bd;
     }
   }
 }
@@ -737,13 +754,16 @@ export default {
   .face-upload-wrapper {
     position: relative;
     min-height: 300rpx;
+    background: #fff5f8;
+    border-radius: 16rpx;
+    padding: 24rpx;
     
     .processing-tips {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(255, 77, 143, 0.95);
       padding: 40rpx;
       border-radius: 20rpx;
       color: #fff;
@@ -751,7 +771,7 @@ export default {
       z-index: 999;
       width: 80%;
       max-width: 600rpx;
-      box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.2);
+      box-shadow: 0 4rpx 16rpx rgba(255, 77, 143, 0.2);
       
       .loading-spinner {
         width: 80rpx;
@@ -772,7 +792,7 @@ export default {
       .sub-tip {
         display: block;
         font-size: 26rpx;
-        color: rgba(255, 255, 255, 0.8);
+        color: rgba(255, 255, 255, 0.9);
         margin-top: 16rpx;
       }
     }

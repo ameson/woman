@@ -5,7 +5,7 @@
       <view id="share-container" class="share-content">
         <view class="score-card">
           <view class="score-header">
-            <text class="score-title">✨相亲指数---你的魅力指数 ✨</text>
+            <text class="score-title">✨相亲指数---魅力得分 ✨</text>
             <text class="score-value">{{ finalScore }}</text>
             <text class="score-level">{{ scoreLevel.title }}</text>
           </view>
@@ -134,7 +134,11 @@ export default {
     },
     dimensionResults() {
       return this.dimensions
-        .filter(dim => !dim.name.includes('年龄')) // 过滤掉年龄维度
+        .filter(dim => 
+          !dim.name.includes('年龄') && 
+          !dim.name.includes('兴趣爱好') && 
+          !dim.name.includes('理想对象')
+        )
         .map(dim => ({
           name: dim.name,
           score: Math.round(dim.score),
@@ -336,6 +340,13 @@ export default {
         if (score >= 70) return '适婚年龄 | 这个年龄段有自己独特的优势，可以更从容地规划感情和未来。'
         if (score >= 60) return '年龄尚可 | 这个年龄段也有其特别之处，建议在感情方面多一些耐心和信心。'
         return '年龄偏低 | 年龄还比较年轻，可以把重心放在个人发展上，感情的事不用着急。'
+      }
+      // 排除兴趣爱好和理想对象
+      const currentDimension = this.dimensions.find(d => d.score === score)
+      if (currentDimension && 
+          (currentDimension.name.includes('兴趣爱好') || 
+           currentDimension.name.includes('理想对象'))) {
+        return '这是一个有趣的维度，但不会影响你的整体魅力指数。'
       }
       // 其他维度保持原有评价
       if (score >= 90) return '非常出色 | 这一方面你表现极其优秀，是你的一大亮点，建议继续保持并发挥这份优势，让自己更加闪耀。'
