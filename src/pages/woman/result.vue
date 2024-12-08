@@ -106,7 +106,10 @@ export default {
           keywords: ['真实率真', '积极乐观', '成长空间', '潜力无限']
         }
       ],
-      qrImagePath: null
+      qrImagePath: null,
+      qrImageBase64: null,  // base64格式的二维码
+      shareImagePath: null, // 生成的分享图片路径
+      shareImageUrl: null, // 新增：存储分享图片的URL
     }
   },
   computed: {
@@ -149,20 +152,102 @@ export default {
     }
   },
   mounted() {
-    // 加载html2canvas
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-    script.onload = () => {
-      console.log('html2canvas loaded');
-    };
-    document.head.appendChild(script);
     this.preloadQRImage();
   },
   methods: {
+    async preloadQRImage() {
+      try {
+        // #ifdef H5
+        // 使用相对路径
+        const qrPath = '/static/qr.jpg';
+        
+        // 使用fetch加载图片并转换为base64
+        const response = await fetch(qrPath);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        
+        await new Promise((resolve, reject) => {
+          reader.onload = () => {
+            this.qrImageBase64 = reader.result;
+            resolve();
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        // #endif
+        
+        // #ifdef MP-WEIXIN
+        const qrPath = '/static/qr.jpg';
+        await new Promise((resolve, reject) => {
+          uni.getImageInfo({
+            src: qrPath,
+            success: (res) => {
+              this.qrImagePath = res.path;
+              resolve(res);
+            },
+            fail: (err) => {
+              console.error('预加载二维码失败:', err);
+              reject(err);
+            }
+          });
+        });
+        // #endif
+      } catch (error) {
+        console.error('预加载二维码失败:', error);
+      }
+    },
+
+    // 通用的图片下载方法
+    downloadImage(dataUrl, filename) {
+      // 兼容多种环境的下载方法
+      try {
+        // 方法1：使用 a 标签下载
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (webApiError) {
+        try {
+          // 方法2：使用 uni.downloadFile
+          uni.downloadFile({
+            url: dataUrl,
+            success: (res) => {
+              if (res.statusCode === 200) {
+                uni.saveFile({
+                  tempFilePath: res.tempFilePath,
+                  success: (saveRes) => {
+                    uni.showToast({
+                      title: '保存成功',
+                      icon: 'success'
+                    });
+                  }
+                });
+              }
+            },
+            fail: (err) => {
+              console.error('下载失败', err);
+              uni.showToast({
+                title: '下载失败',
+                icon: 'none'
+              });
+            }
+          });
+        } catch (uniError) {
+          console.error('图片下载失败', uniError);
+          uni.showToast({
+            title: '下载失败',
+            icon: 'none'
+          });
+        }
+      }
+    },
+
     async shareScore() {
       try {
         // #ifdef MP-WEIXIN
-        // 微信小程序环境下请求权限
+        // 小程序授权逻辑
         const authRes = await new Promise((resolve) => {
           uni.authorize({
             scope: 'scope.writePhotosAlbum',
@@ -185,165 +270,161 @@ export default {
         }
         // #endif
 
-        // 确保二维码已加载
-        if (!this.qrImagePath) {
-          await this.preloadQRImage();
-        }
+        // 生成分享图片的通用方法
+        const generateShareImage = () => {
+          return new Promise((resolve, reject) => {
+            // 确保二维码已加载
+            const qrImageSrc = this.qrImageBase64 || this.qrImagePath || '/static/qr.jpg';
 
-        const ctx = uni.createCanvasContext('shareCanvas', this);
-        const canvasWidth = 375;
-        const canvasHeight = 800;
-        
-        // 设置背景色
-        const grd = ctx.createLinearGradient(0, 0, 0, canvasHeight);
-        grd.addColorStop(0, '#fff5f5');
-        grd.addColorStop(1, '#fff5f5');
-        ctx.setFillStyle(grd);
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-        
-        // 绘制标题
-        ctx.setFontSize(24);
-        ctx.setFillStyle('#ff4d6a');
-        ctx.setTextAlign('center');
-        ctx.fillText('相亲指数---你的魅力指数', canvasWidth/2, 50);
-        
-        // 绘制分数
-        ctx.setFontSize(120);
-        ctx.setFillStyle('#ff4d6a');
-        ctx.fillText(this.finalScore, canvasWidth/2, 180);
-        
-        // 绘制类型
-        ctx.setFontSize(28);
-        const starEmoji = '⭐';
-        ctx.fillText(starEmoji + ' ' + this.scoreLevel.title + ' ' + starEmoji, canvasWidth/2, 240);
-        
-        // 绘制关键词标签
-        const tags = this.scoreLevel.keywords;
-        const tagHeight = 36;
-        const tagPadding = 20;
-        const tagSpacing = 15;
-        let currentX = 20;
-        let currentY = 280;
-        
-        ctx.setFontSize(16);
-        tags.forEach((tag, index) => {
-          const textWidth = ctx.measureText(tag).width;
-          const tagWidth = textWidth + tagPadding * 2;
-          
-          if (currentX + tagWidth > canvasWidth - 20) {
-            currentX = 20;
-            currentY += tagHeight + 10;
-          }
-          
-          ctx.setFillStyle('#ffd4dc');
-          ctx.fillRect(currentX, currentY, tagWidth, tagHeight);
-          
-          ctx.setFillStyle('#ff4d6a');
-          ctx.setTextAlign('center');
-          ctx.fillText(tag, currentX + tagWidth/2, currentY + 25);
-          
-          currentX += tagWidth + tagSpacing;
-        });
-        
-        // 绘制评语
-        currentY += tagHeight + 30;
-        ctx.setFontSize(16);
-        ctx.setFillStyle('#333333');
-        ctx.setTextAlign('left');
-        const text = this.scoreLevel.description;
-        this.drawMultilineText(ctx, text, 20, currentY, canvasWidth - 40, 24);
-        
-        // 绘制城市信息
-        currentY += 100;
-        ctx.setFontSize(16);
-        ctx.fillText('所在城市：' + this.city, 20, currentY);
-        currentY += 25;
-        ctx.setFontSize(14);
-        ctx.setFillStyle('#999999');
-        ctx.fillText('* 已根据城市特点调整评分标准', 20, currentY);
-        
-        // 绘制颜值评分
-        currentY += 40;
-        ctx.setFontSize(16);
-        ctx.setFillStyle('#333333');
-        ctx.fillText('颜值评分：' + Math.round(this.faceScore * 100) + '分', 20, currentY);
-        currentY += 25;
-        ctx.setFontSize(14);
-        ctx.setFillStyle('#999999');
-        ctx.fillText('* 已将颜值评分计入总分', 20, currentY);
-        
-        try {
-          // 绘制二维码
-          const qrSize = 120;
-          const qrX = (canvasWidth - qrSize) / 2;
-          currentY += 60;
+            // 创建离屏 canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = 375;
+            canvas.height = 800;
+            const ctx = canvas.getContext('2d');
 
-          if (this.qrImagePath) {
-            ctx.drawImage(this.qrImagePath, qrX, currentY, qrSize, qrSize);
-          } else {
-            console.warn('二维码图片未加载成功，跳过绘制');
-          }
-        } catch (qrError) {
-          console.error('二维码绘制失败:', qrError);
-        }
+            // 渐变背景
+            const gradient = ctx.createLinearGradient(0, 0, 0, 800);
+            gradient.addColorStop(0, '#FFF5F5');
+            gradient.addColorStop(1, '#FFE4E1');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 375, 800);
 
-        currentY += 150;
-        ctx.setFontSize(14);
-        ctx.setTextAlign('center');
-        ctx.setFillStyle('#666666');
-        ctx.fillText('扫描二维码生成你的相亲指数', canvasWidth/2, currentY);
+            // 绘制标题
+            ctx.font = 'bold 24px Arial';
+            ctx.fillStyle = '#FF4D6A';
+            ctx.textAlign = 'center';
+            ctx.fillText('相亲指数 - 你的魅力指数', 375/2, 70);
 
-        // 确保绘制完成
-        await new Promise((resolve) => {
-          ctx.draw(false, () => {
-            setTimeout(resolve, 800); // 增加延时确保绘制完成
+            // 绘制分数
+            ctx.font = 'bold 120px Arial';
+            ctx.fillStyle = '#FF4D6A';
+            ctx.fillText(this.finalScore, 375/2, 230);
+
+            // 绘制类型
+            ctx.font = 'bold 28px Arial';
+            ctx.fillStyle = '#FF4D6A';
+            ctx.fillText(`⭐ ${this.scoreLevel.title} ⭐`, 375/2, 280);
+
+            // 绘制关键词
+            ctx.font = '16px Arial';
+            const tags = this.scoreLevel.keywords;
+            let y = 320;
+            let x = 20;
+            const maxWidth = 335; // canvas总宽度减去两侧边距
+
+            // 绘制关键词的函数
+            const drawTags = (tagsArray) => {
+              tagsArray.forEach((tag) => {
+                // 计算标签宽度
+                const tagWidth = ctx.measureText(tag).width + 30;
+                
+                // 如果当前行放不下，换行
+                if (x + tagWidth > maxWidth) {
+                  x = 20;
+                  y += 46; // 增加行高
+                }
+
+                // 标签背景
+                ctx.fillStyle = 'rgba(255, 77, 106, 0.1)';
+                ctx.beginPath();
+                ctx.roundRect(x, y, tagWidth, 36, [18]);
+                ctx.fill();
+                
+                // 标签文字
+                ctx.fillStyle = '#FF4D6A';
+                ctx.textAlign = 'center';
+                ctx.fillText(tag, x + tagWidth/2, y + 25);
+                
+                // 移动到下一个标签位置
+                x += tagWidth + 10;
+              });
+            };
+
+            // 绘制关键词
+            drawTags(tags);
+
+            // 绘制评语
+            ctx.textAlign = 'left';
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#333333';
+            
+            // 自动换行的评语
+            const wrapText = (text, x, y, maxWidth, lineHeight) => {
+              const words = text.split('');
+              let line = '';
+
+              for (let n = 0; n < words.length; n++) {
+                const testLine = line + words[n];
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > maxWidth && n > 0) {
+                  ctx.fillText(line, x, y);
+                  line = words[n];
+                  y += lineHeight;
+                } else {
+                  line = testLine;
+                }
+              }
+              ctx.fillText(line, x, y);
+            };
+
+            wrapText(this.scoreLevel.description, 20, 420, 335, 25);
+
+            // 城市和颜值信息
+            ctx.font = '14px Arial';
+            ctx.fillStyle = '#666666';
+            ctx.fillText(`所在城市：${this.city}`, 20, 550);
+            ctx.fillText(`颜值评分：${Math.round(this.faceScore * 100)}分`, 20, 580);
+
+            // 绘制二维码
+            const drawQRCode = () => {
+              return new Promise((qrResolve, qrReject) => {
+                const qrImg = new Image();
+                qrImg.crossOrigin = 'anonymous'; // 处理跨域问题
+                qrImg.onload = () => {
+                  ctx.drawImage(qrImg, 127, 620, 120, 120);
+                  qrResolve();
+                };
+                qrImg.onerror = (error) => {
+                  console.error('二维码加载失败:', error);
+                  // 绘制错误占位
+                  ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                  ctx.beginPath();
+                  ctx.roundRect(127, 620, 120, 120, [10]);
+                  ctx.fill();
+                  qrResolve(); // 即使加载失败也继续
+                };
+                qrImg.src = qrImageSrc;
+              });
+            };
+
+            // 绘制底部文字
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#666666';
+            ctx.textAlign = 'center';
+            ctx.fillText('扫描二维码生成你的相亲指数', 375/2, 760);
+
+            // 先绘制二维码，再转换
+            drawQRCode().then(() => {
+              // 转换为 Data URL
+              const dataUrl = canvas.toDataURL('image/png');
+              resolve(dataUrl);
+            }).catch(reject);
           });
-        });
+        };
 
-        // 生成图片
-        const tempFilePath = await new Promise((resolve, reject) => {
-          uni.canvasToTempFilePath({
-            canvasId: 'shareCanvas',
-            fileType: 'png',
-            quality: 1,
-            success: (res) => resolve(res.tempFilePath),
-            fail: reject
-          }, this);
-        });
+        // 生成分享图片
+        const shareImageUrl = await generateShareImage();
 
-        // #ifdef H5
-        // H5环境下，创建一个临时链接供下载
-        const a = document.createElement('a');
-        a.href = tempFilePath;
-        a.download = '相亲指数_' + new Date().getTime() + '.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        // 下载图片
+        this.downloadImage(
+          shareImageUrl, 
+          `相亲指数_${new Date().getTime()}.png`
+        );
+
         uni.showToast({
-          title: '图片已开始下载',
+          title: '图片已准备下载',
           icon: 'success'
         });
-        // #endif
-
-        // #ifdef MP-WEIXIN
-        // 微信小程序环境下保存到相册
-        await new Promise((resolve, reject) => {
-          uni.saveImageToPhotosAlbum({
-            filePath: tempFilePath,
-            success: () => {
-              uni.showToast({
-                title: '已保存到相册',
-                icon: 'success'
-              });
-              resolve();
-            },
-            fail: (err) => {
-              console.error('保存到相册失败:', err);
-              reject(err);
-            }
-          });
-        });
-        // #endif
 
       } catch (error) {
         console.error('分享图片失败:', error);
@@ -355,51 +436,11 @@ export default {
       }
     },
     
-    // 辅助方法：预加载二维码图片
-    async preloadQRImage() {
-      try {
-        // #ifdef H5
-        const qrPath = new URL('@/static/qr.jpg', import.meta.url).href;
-        // #endif
-        
-        // #ifdef MP-WEIXIN
-        const qrPath = '/static/qr.jpg';
-        // #endif
-
-        await new Promise((resolve, reject) => {
-          uni.getImageInfo({
-            src: qrPath,
-            success: (res) => {
-              this.qrImagePath = res.path;
-              resolve(res);
-            },
-            fail: (err) => {
-              console.error('预加载二维码失败:', err);
-              reject(err);
-            }
-          });
-        });
-      } catch (error) {
-        console.error('预加载二维码失败:', error);
-      }
-    },
-    
-    // 辅助方法：获取图片信息
-    getImageInfo(src) {
-      return new Promise((resolve, reject) => {
-        uni.getImageInfo({
-          src: src,
-          success: resolve,
-          fail: reject
-        });
-      });
-    },
-    
     // 辅助方法：绘制多行文本
     drawMultilineText(ctx, text, x, y, maxWidth, lineHeight) {
       let chars = text.split('');
       let line = '';
-      
+
       for (let i = 0; i < chars.length; i++) {
         let testLine = line + chars[i];
         let metrics = ctx.measureText(testLine);
@@ -488,14 +529,14 @@ export default {
 
     .score-title {
       font-size: 20px;
-      color: #ff6b81;
+      color: #ff4d6a;
       margin-bottom: 15px;
       display: block;
     }
 
     .score-value {
       font-size: 56px;
-      color: #ff6b81;
+      color: #ff4d6a;
       font-weight: bold;
       margin: 10px 0;
       display: block;
@@ -503,7 +544,7 @@ export default {
 
     .score-level {
       font-size: 28px;
-      color: #ff6b81;
+      color: #ff4d6a;
       font-weight: bold;
       display: block;
     }
