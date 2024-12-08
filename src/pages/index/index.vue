@@ -91,6 +91,14 @@
     <view class="footer">
       <text class="footer-text">遇见心动，遇见美好的你 💖</text>
     </view>
+    <view class="follow-us">
+            <view class="follow-content">
+              <text class="follow-title">关注我们</text>
+              <image class="qr-code" src="@/static/qr.jpg" mode="aspectFit"></image>
+              <text class="follow-desc">扫码关注获取更多资讯</text>
+            </view>
+          </view>
+    <view></view>
   </view>
 </template>
 
@@ -364,4 +372,37 @@ export default {
     transform: translateY(0);
   }
 }
+
+
+.follow-us {
+    margin-top: 30rpx;
+    padding: 20rpx;
+    background-color: #fff;
+    border-radius: 12rpx;
+    
+    .follow-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      
+      .follow-title {
+        font-size: 32rpx;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 20rpx;
+      }
+
+      .qr-code {
+        width: 240rpx;
+        height: 240rpx;
+        margin: 10rpx 0;
+      }
+
+      .follow-desc {
+        font-size: 24rpx;
+        color: #666;
+        margin-top: 10rpx;
+      }
+    }
+  }
 </style>
