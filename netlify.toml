@@ -1,9 +1,9 @@
 [build]
   command = "npm run build:h5"
-  publish = "dist"
+  publish = "dist/build/h5"
 
 [[redirects]]
-  from = "/build/h5/*"
+  from = "/*"
   to = "/index.html"
   status = 200
 
