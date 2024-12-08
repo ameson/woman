@@ -63,6 +63,19 @@
       </view>
     </view>
 
+    <view class="ad-container">
+      <ad-custom 
+        unit-id="adunit-xxxxxxxxxxxxxxxx" 
+        ad-type="banner" 
+        ad-theme="white">
+      </ad-custom>
+    </view>
+
+    <view class="relationship-test-link" @click="openRelationshipTest">
+      <text class="relationship-test-text">💕 感情关系测试</text>
+      <text class="relationship-test-icon">→</text>
+    </view>
+
     <view class="tips">
       <view class="tip-header">
         <text class="tip-title">小贴士</text>
@@ -127,6 +140,12 @@ export default {
         }
       }
     },
+    openRelationshipTest() {
+      // 使用 uni.navigateTo 跳转到外部链接
+      uni.navigateTo({
+        url: '/pages/webview/webview?url=' + encodeURIComponent('https://cuckold.qioo.fun/')
+      });
+    }
   }
 }
 </script>
@@ -259,6 +278,28 @@ export default {
   padding: 8rpx 20rpx;
   border-radius: 30rpx;
   font-size: 24rpx;
+}
+
+.relationship-test-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx;
+  border-radius: 20rpx;
+  background: #fff;
+  box-shadow: 0 8rpx 32rpx rgba(255, 77, 143, 0.1);
+  margin-bottom: 40rpx;
+}
+
+.relationship-test-text {
+  font-size: 30rpx;
+  color: #ff4d8f;
+  margin-right: 12rpx;
+}
+
+.relationship-test-icon {
+  font-size: 24rpx;
+  color: #ff4d8f;
 }
 
 .tips {
