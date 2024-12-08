@@ -105,7 +105,8 @@ export default {
           description: '每个人都是独一无二的小宇宙！虽然现在还在努力追寻自己的方向，但只要坚持下去，你一定会成长为最闪亮的那颗星星✨',
           keywords: ['真实率真', '积极乐观', '成长空间', '潜力无限']
         }
-      ]
+      ],
+      qrImagePath: null
     }
   },
   computed: {
@@ -155,10 +156,40 @@ export default {
       console.log('html2canvas loaded');
     };
     document.head.appendChild(script);
+    this.preloadQRImage();
   },
   methods: {
     async shareScore() {
       try {
+        // #ifdef MP-WEIXIN
+        // 微信小程序环境下请求权限
+        const authRes = await new Promise((resolve) => {
+          uni.authorize({
+            scope: 'scope.writePhotosAlbum',
+            success: () => resolve(true),
+            fail: () => resolve(false)
+          });
+        });
+
+        if (!authRes) {
+          uni.showModal({
+            title: '提示',
+            content: '需要您授权保存图片到相册',
+            success: (res) => {
+              if (res.confirm) {
+                uni.openSetting();
+              }
+            }
+          });
+          return;
+        }
+        // #endif
+
+        // 确保二维码已加载
+        if (!this.qrImagePath) {
+          await this.preloadQRImage();
+        }
+
         const ctx = uni.createCanvasContext('shareCanvas', this);
         const canvasWidth = 375;
         const canvasHeight = 800;
@@ -199,17 +230,14 @@ export default {
           const textWidth = ctx.measureText(tag).width;
           const tagWidth = textWidth + tagPadding * 2;
           
-          // 如果当前行放不下，换行
           if (currentX + tagWidth > canvasWidth - 20) {
             currentX = 20;
             currentY += tagHeight + 10;
           }
           
-          // 绘制标签背景
           ctx.setFillStyle('#ffd4dc');
           ctx.fillRect(currentX, currentY, tagWidth, tagHeight);
           
-          // 绘制标签文字
           ctx.setFillStyle('#ff4d6a');
           ctx.setTextAlign('center');
           ctx.fillText(tag, currentX + tagWidth/2, currentY + 25);
@@ -244,60 +272,115 @@ export default {
         ctx.setFillStyle('#999999');
         ctx.fillText('* 已将颜值评分计入总分', 20, currentY);
         
-        // 加载并绘制二维码
-        const qrImage = await this.getImageInfo('/static/qr.jpg');
-        const qrSize = 120;
-        const qrX = (canvasWidth - qrSize) / 2;
-        currentY += 60;
-        ctx.drawImage(qrImage.path, qrX, currentY, qrSize, qrSize);
-        
-        // 绘制二维码说明
-        currentY += qrSize + 30;
+        try {
+          // 绘制二维码
+          const qrSize = 120;
+          const qrX = (canvasWidth - qrSize) / 2;
+          currentY += 60;
+
+          if (this.qrImagePath) {
+            ctx.drawImage(this.qrImagePath, qrX, currentY, qrSize, qrSize);
+          } else {
+            console.warn('二维码图片未加载成功，跳过绘制');
+          }
+        } catch (qrError) {
+          console.error('二维码绘制失败:', qrError);
+        }
+
+        currentY += 150;
         ctx.setFontSize(14);
         ctx.setTextAlign('center');
         ctx.setFillStyle('#666666');
         ctx.fillText('扫描二维码生成你的相亲指数', canvasWidth/2, currentY);
+
+        // 确保绘制完成
+        await new Promise((resolve) => {
+          ctx.draw(false, () => {
+            setTimeout(resolve, 800); // 增加延时确保绘制完成
+          });
+        });
+
+        // 生成图片
+        const tempFilePath = await new Promise((resolve, reject) => {
+          uni.canvasToTempFilePath({
+            canvasId: 'shareCanvas',
+            fileType: 'png',
+            quality: 1,
+            success: (res) => resolve(res.tempFilePath),
+            fail: reject
+          }, this);
+        });
+
+        // #ifdef H5
+        // H5环境下，创建一个临时链接供下载
+        const a = document.createElement('a');
+        a.href = tempFilePath;
+        a.download = '相亲指数_' + new Date().getTime() + '.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        uni.showToast({
+          title: '图片已开始下载',
+          icon: 'success'
+        });
+        // #endif
+
+        // #ifdef MP-WEIXIN
+        // 微信小程序环境下保存到相册
+        await new Promise((resolve, reject) => {
+          uni.saveImageToPhotosAlbum({
+            filePath: tempFilePath,
+            success: () => {
+              uni.showToast({
+                title: '已保存到相册',
+                icon: 'success'
+              });
+              resolve();
+            },
+            fail: (err) => {
+              console.error('保存到相册失败:', err);
+              reject(err);
+            }
+          });
+        });
+        // #endif
+
+      } catch (error) {
+        console.error('分享图片失败:', error);
+        uni.showModal({
+          title: '保存失败',
+          content: '生成分享图片失败，请重试',
+          showCancel: false
+        });
+      }
+    },
+    
+    // 辅助方法：预加载二维码图片
+    async preloadQRImage() {
+      try {
+        // #ifdef H5
+        const qrPath = new URL('@/static/qr.jpg', import.meta.url).href;
+        // #endif
         
-        ctx.draw(false, () => {
-          setTimeout(() => {
-            uni.canvasToTempFilePath({
-              canvasId: 'shareCanvas',
-              fileType: 'png',
-              quality: 1,
-              success: (res) => {
-                const base64 = res.tempFilePath;
-                const a = document.createElement('a');
-                if (base64.startsWith('data:image')) {
-                  a.href = base64;
-                } else {
-                  a.href = 'data:image/png;base64,' + base64;
-                }
-                a.download = '相亲指数_' + new Date().getTime() + '.png';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                
-                uni.showToast({
-                  title: '图片已开始下载',
-                  icon: 'success'
-                });
-              },
-              fail: (err) => {
-                console.error('生成图片失败:', err);
-                uni.showToast({
-                  title: '生成图片失败',
-                  icon: 'none'
-                });
-              }
-            });
-          }, 300);
+        // #ifdef MP-WEIXIN
+        const qrPath = '/static/qr.jpg';
+        // #endif
+
+        await new Promise((resolve, reject) => {
+          uni.getImageInfo({
+            src: qrPath,
+            success: (res) => {
+              this.qrImagePath = res.path;
+              resolve(res);
+            },
+            fail: (err) => {
+              console.error('预加载二维码失败:', err);
+              reject(err);
+            }
+          });
         });
       } catch (error) {
-        console.error('分享图片生成失败:', error);
-        uni.showToast({
-          title: '分享图片生成失败',
-          icon: 'none'
-        });
+        console.error('预加载二维码失败:', error);
       }
     },
     
