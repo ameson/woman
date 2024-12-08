@@ -21,7 +21,7 @@
               <view v-if="isProcessingFace" class="processing-tips">
                 <view class="loading-spinner"></view>
                 <text class="loading-text">AI正在分析照片，请稍候...</text>
-                <text class="sub-tip">通常需要1-2秒完成分析</text>
+                <text class="sub-tip">通常需要3-5秒完成分析</text>
               </view>
             </view>
           </view>
