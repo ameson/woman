@@ -7,6 +7,7 @@
       </view>
       <text class="title">相亲魅力指数--遇见更好的自己</text>
       <text class="subtitle">一起探索你的魅力潜力值 ✨</text>
+      <text class="subtitle">自研AI算法，科学计算你的颜值指数✨</text>
       <view class="decoration">
         <view class="circle circle-1"></view>
         <view class="circle circle-2"></view>
