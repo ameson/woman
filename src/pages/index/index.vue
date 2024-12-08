@@ -141,10 +141,16 @@ export default {
       }
     },
     openRelationshipTest() {
-      // 使用 uni.navigateTo 跳转到外部链接
+      // 平台兼容的跳转方法
+      // #ifdef H5
+      window.open('https://cuckold.qioo.fun/', '_blank');
+      // #endif
+
+      // #ifndef H5
       uni.navigateTo({
         url: '/pages/webview/webview?url=' + encodeURIComponent('https://cuckold.qioo.fun/')
       });
+      // #endif
     }
   }
 }
